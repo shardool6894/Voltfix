@@ -1,6 +1,6 @@
 const { userModel } = require('../models/users')
 const crypto = require('crypto')
-const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix, addGeoCache, searchGeoCache, removeGeoCache, fetchWithDeduplication, fetchStaleDataWhileRevalidate } = require('../utils/cache')
 
 const registerServices = async (userData) => {
     const existingUser = await userModel.findByEmail(userData.email)

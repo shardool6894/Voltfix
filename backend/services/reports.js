@@ -1,15 +1,38 @@
 const { issueReportModel } = require('../models/reports')
 const { chargingStationModel } = require('../models/stations')
-const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix, addGeoCache, searchGeoCache, removeGeoCache, fetchWithDeduplication, fetchStaleDataWhileRevalidate } = require('../utils/cache')
 const getAllReportsServices = async () => {
-    const cachedReports = getCache('reports:all');
+    const page = queryParams.page || 1;
+    const limit = queryParams.limit || 10;
+    const skip = (page - 1) * limit;
+    const sort = queryParams.sort || '-createdAt';
+    const searchKeywords = queryParams.search || '';
+    let query = {}
+    if (searchKeywords) {
+        query.$or = [
+            { name: { $regex: searchKeywords, $options: 'i' } },
+            { address: { $regex: searchKeywords, $options: 'i' } }
+        ]
+    }
+    const cacheKey = `stations:${page}:${limit}:${sort}:${searchKeywords}`;
+    const cachedReports = getCache(cacheKey);
     if (cachedReports) {
         return cachedReports;
     }
     else {
-        const data = await issueReportModel.find({}).sort({ createdAt: -1 });
-        setCache('reports:all', data, 60 * 60 * 1000);
-        return data;
+        const response = await fetchStaleDataWhileRevalidate(cacheKey, 3600, () => {
+            const [data, totalData] = await Promise.all([await issueReportModel.find(query).sort(sort).skip(skip).limit(limit), chargingStationModel.countDocuments(query)]);
+            setCache('reports:all', data, 60 * 60 * 1000);
+            const returnValue = {
+                data, pagination: {
+                    totalItems: totalData,
+                    totalPages: Math.ceil(totalData / limit),
+                    currentPage: page,
+                    itemsPerPage: limit
+                }
+            };
+            return returnValue;
+        })
     }
 }
 const createReportServices = async (data) => {

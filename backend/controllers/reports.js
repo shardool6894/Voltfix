@@ -1,10 +1,11 @@
 const { getAllReportsServices, createReportServices, updateReportStatusServices, dismissReportServices } = require('../services/reports')
 const getAllReports = async (req, res, next) => {
     try {
-        const data = await getAllReportsServices()
-        res.status(200).send({
+        const { data, pagination } = await getAllReportsServices()
+        res.status(200).json({
             success: true,
-            data: data
+            data: data,
+            pagination: pagination
         })
     }
     catch (err) {
