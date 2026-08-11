@@ -1,7 +1,7 @@
 const dotenv = require('dotenv').config();
 const jwt = require('jsonwebtoken');
 
-const authenticate = (req, res, next) => {
+const middleWareFn = (req, res, next) => {
     try {
         let decoded = null;
 
@@ -48,4 +48,4 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
-module.exports = { middleWareFn: authenticate, authenticate, requireAdmin };
+module.exports = { middleWareFn, requireAdmin };

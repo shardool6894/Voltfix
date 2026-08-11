@@ -45,17 +45,25 @@ const updateReportStatusServices = async (userid, reportid, stationStatus) => {
     report.resolvedAt = new Date();
     report.resolvedBy = userid;
     await report.save();
-    await chargingStationModel.findOneAndUpdate(
+    const updatedReport = await chargingStationModel.findOneAndUpdate(
         { name: report.stationName },
         { status: stationStatus }, { returnDocument: "after" }
     );
-    const checkExistingCache = getCache(`report:${reportid}`);
-    if (checkExistingCache) {
-        invalidateCache(`report:${reportid}`);
-    }
-    setCache(`report:${reportid}`, report, 60 * 60 * 1000);
+    setCache(`report:${updatedReport._id}`, updatedReport, 60 * 60 * 1000);
     invalidateCache('reports:all');
-    return report;
+    const date = new Date();
+    let start = new Date(date);
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0) {
+        start.setDate(date.getDate() - 6)
+    }
+    else {
+        start.setDate(date.getDate() - dayOfWeek + 1);
+    }
+    start.setHours(0, 0, 0, 0)
+    invalidateCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`);
+    invalidateCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`, count, 60 * 60 * 1000);
+    return updatedReport;
 }
 const dismissReportServices = async (userId, reportId) => {
     const report = await issueReportModel.findById(reportId);
@@ -66,12 +74,20 @@ const dismissReportServices = async (userId, reportId) => {
     report.dismissedAt = new Date();
     report.dismissedBy = userId;
     await report.save();
-    const checkExistingCache = getCache(`report:${reportId}`);
-    if (checkExistingCache) {
-        invalidateCache(`report:${reportId}`);
-    }
     setCache(`report:${reportId}`, report, 60 * 60 * 1000);
     invalidateCache('reports:all');
+    const date = new Date();
+    let start = new Date(date);
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0) {
+        start.setDate(date.getDate() - 6)
+    }
+    else {
+        start.setDate(date.getDate() - dayOfWeek + 1);
+    }
+    start.setHours(0, 0, 0, 0)
+    invalidateCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`);
+    invalidateCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`, count, 60 * 60 * 1000);
     return report;
 }
 module.exports = { getAllReportsServices, createReportServices, updateReportStatusServices, dismissReportServices }

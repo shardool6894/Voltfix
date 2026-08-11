@@ -1,10 +1,11 @@
 const { returnAllStationsLiterallyServices, returnAllStationsServices, returnAvailableStationsServices, returnInUseStationsServices, returnFaultyStationsServices, createStationServices, updateStationServices, deleteStationServices } = require('../services/stations')
-const returnAllStationsLiterally = async (req,res,next) => {
+const returnAllStationsLiterally = async (req, res, next) => {
     try {
-        const data = await returnAllStationsLiterallyServices()
+        const { data, pagination } = await returnAllStationsLiterallyServices(req.query);
         res.status(200).json({
             success: true,
-            data: data
+            data: data,
+            pagination : pagination
         })
     }
     catch (err) {

@@ -19,17 +19,23 @@ const reportedTodayServices = async function () {
     // })
     // return reportedToday;
     //the above one scans too much
+    const date = new Date();
+    const cachedCount = getCache(`stats:reportedTodayCount:${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`);
+    if (cachedCount) {
+        return count;
+    }
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    const data = await issueReportModel.find({
+    const count = await issueReportModel.countDocuments({
         createdAt: {
             $gte: start,
             $lte: end
         }
-    })
-    return data;
+    });
+    setCache(`stats:reportedTodayCount:${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`, count, 60 * 60 * 1000);
+    return count;
 }
 const fixedThisWeekServices = async function () {
     const date = new Date();
@@ -45,12 +51,18 @@ const fixedThisWeekServices = async function () {
     const end = new Date(start)
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
-    return (await issueReportModel.find({
+    const cachedCount = getCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`);
+    if (cachedCount) {
+        return cachedCount;
+    }
+    const count = await issueReportModel.countDocuments({
         status: { $in: ["resolved", "closed"] },
         updatedAt: {
             $gte: start,
             $lte: end
         }
-    }));
+    });
+    setCache(`stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`, count, 60 * 60 * 1000);
+    return count;
 }
 module.exports = { stationsTrackedServices, reportedTodayServices, fixedThisWeekServices } 

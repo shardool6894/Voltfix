@@ -574,7 +574,7 @@ async function fetchStats() {
         .then(res => res.json())
         .then(data => {
             if (domElements.stats.reportedToday) {
-                const count = Array.isArray(data.data) ? data.data.length : (data.data || 0);
+                const count =  data.data || 0;
                 domElements.stats.reportedToday.textContent = count;
             }
         })
@@ -585,7 +585,7 @@ async function fetchStats() {
         .then(res => res.json())
         .then(data => {
             if (domElements.stats.fixedThisWeek) {
-                const count = Array.isArray(data.data) ? data.data.length : (data.data || 0);
+                const count = data.data || 0;
                 domElements.stats.fixedThisWeek.textContent = count;
             }
         })

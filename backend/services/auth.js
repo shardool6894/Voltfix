@@ -30,7 +30,7 @@ const registerServices = async (userData) => {
 }
 
 const loginServices = async (userData) => {
-    const user = await userModel.findByEmail(userData.email)
+    const user = await userModel.findByEmail(userData.email);
     if (!user) {
         throw new Error('Email or Password is incorrect')
     }
@@ -40,18 +40,18 @@ const loginServices = async (userData) => {
     }
     const authToken = user.signAuthToken();
     const refreshToken = user.signRefreshToken();
-    setCache(`user:${user._id}`, user.lean(), 60 * 60 * 1000);
+    setCache(`user:${user._id}`, user, 60 * 60 * 1000);
     return { user, authToken, refreshToken };
 }
 
 const getProfileServices = async (userId) => {
     const cachedUser = getCache(`user:${userId}`);
     if (!cachedUser) {
-        const user = await userModel.findById(userId)
+        const user = await userModel.findById(userId).lean();
         if (!user) {
             throw new Error("User not found");
         }
-        setCache(`user:${userId}`, user.lean(), 60 * 60 * 1000);
+        setCache(`user:${userId}`, user, 60 * 60 * 1000);
         return user;
     }
     return cachedUser;
@@ -67,15 +67,11 @@ const updateProfileServices = async (userId, newData) => {
         {
             new: true,
             runValidators: true
-        })
+        }).lean();
     if (!updatedUser) {
         throw new Error('user not found')
     }
-    const checkExistingCache = getCache(`user:${userId}`);
-    if (checkExistingCache) {
-        invalidateCache(`user:${userId}`);
-    }
-    setCache(`user:${userId}`, updatedUser.lean(), 60 * 60 * 1000);
+    setCache(`user:${userId}`, updatedUser, 60 * 60 * 1000);
     return updatedUser;
 }
 
@@ -92,11 +88,7 @@ const changePasswordServices = async (userId, currentPassword, newPassword) => {
         throw new Error(`Current password is incorrect`)
     }
     user.password = newPassword;
-    const checkExistingCache = getCache(`user:${userId}`);
-    if (checkExistingCache) {
-        invalidateCache(`user:${userId}`);
-    }
-    setCache(`user:${userId}`, user.lean(), 60 * 60 * 1000);
+    setCache(`user:${userId}`, user, 60 * 60 * 1000);
     await user.save();
     return user;
 }
