@@ -1,9 +1,15 @@
 const { chargingStationModel } = require('../models/stations')
 const { issueReportModel } = require('../models/reports')
-const mongoose = require('mongoose')
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
+const { set } = require('mongoose')
 const stationsTrackedServices = async function () {
-    const all = await chargingStationModel.find({})
-    return all.length;
+    const cachedCount = getCache('stats:stationsCount')
+    if (cachedCount !== undefined) {
+        return cachedCount;
+    }
+    const count = await chargingStationModel.countDocuments();
+    setCache('stats:stationsCount', count, 1000 * 60 * 60 * 24);
+    return count;
 }
 const reportedTodayServices = async function () {
     // const date = new Date();
@@ -17,12 +23,13 @@ const reportedTodayServices = async function () {
     start.setHours(0, 0, 0, 0);
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    return (await issueReportModel.find({
+    const data = await issueReportModel.find({
         createdAt: {
             $gte: start,
             $lte: end
         }
-    }));
+    })
+    return data;
 }
 const fixedThisWeekServices = async function () {
     const date = new Date();
@@ -46,4 +53,4 @@ const fixedThisWeekServices = async function () {
         }
     }));
 }
-module.exports = {stationsTrackedServices,reportedTodayServices,fixedThisWeekServices} 
+module.exports = { stationsTrackedServices, reportedTodayServices, fixedThisWeekServices } 

@@ -1,22 +1,22 @@
 const { userModel } = require('../models/users')
 const crypto = require('crypto')
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
 
 const registerServices = async (userData) => {
     const existingUser = await userModel.findByEmail(userData.email)
     if (existingUser) {
         throw new Error('email taken')
     }
-
-    const adminEmails = getAdminEmails();
     const email = userData.email.trim().toLowerCase();
     let role = 'driver'
     if (userData.adminSecret && process.env.ADMIN_SECRET) {
         const providedSecret = Buffer.from(userData.adminSecret);
         const actualSecret = Buffer.from(process.env.ADMIN_SECRET);
-        if (providedSecret.length === actualSecret.length && 
+        if (providedSecret.length === actualSecret.length &&
             crypto.timingSafeEqual(providedSecret, actualSecret)) {
             role = 'admin';
         }
+        //entire logic so that attacker cannot get the admin secret by timing brute force
     }
 
     const user = new userModel({
@@ -40,15 +40,21 @@ const loginServices = async (userData) => {
     }
     const authToken = user.signAuthToken();
     const refreshToken = user.signRefreshToken();
+    setCache(`user:${user._id}`, user.lean(), 60 * 60 * 1000);
     return { user, authToken, refreshToken };
 }
 
 const getProfileServices = async (userId) => {
-    const user = await userModel.findById(userId)
-    if (!user) {
-        throw new Error("User not found");
+    const cachedUser = getCache(`user:${userId}`);
+    if (!cachedUser) {
+        const user = await userModel.findById(userId)
+        if (!user) {
+            throw new Error("User not found");
+        }
+        setCache(`user:${userId}`, user.lean(), 60 * 60 * 1000);
+        return user;
     }
-    return user;
+    return cachedUser;
 }
 
 const updateProfileServices = async (userId, newData) => {
@@ -65,6 +71,11 @@ const updateProfileServices = async (userId, newData) => {
     if (!updatedUser) {
         throw new Error('user not found')
     }
+    const checkExistingCache = getCache(`user:${userId}`);
+    if (checkExistingCache) {
+        invalidateCache(`user:${userId}`);
+    }
+    setCache(`user:${userId}`, updatedUser.lean(), 60 * 60 * 1000);
     return updatedUser;
 }
 
@@ -81,6 +92,11 @@ const changePasswordServices = async (userId, currentPassword, newPassword) => {
         throw new Error(`Current password is incorrect`)
     }
     user.password = newPassword;
+    const checkExistingCache = getCache(`user:${userId}`);
+    if (checkExistingCache) {
+        invalidateCache(`user:${userId}`);
+    }
+    setCache(`user:${userId}`, user.lean(), 60 * 60 * 1000);
     await user.save();
     return user;
 }
@@ -90,6 +106,7 @@ const deleteProfileServices = async (userId) => {
     if (!deletedUser) {
         throw new Error('User not found');
     }
+    invalidateCache(`user:${userId}`);
     return { message: 'Profile deleted successfully' };
 };
 module.exports = { registerServices, loginServices, getProfileServices, updateProfileServices, changePasswordServices, deleteProfileServices }

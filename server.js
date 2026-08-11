@@ -10,7 +10,7 @@ const { reportRouter } = require("./backend/routes/reports");
 const { statRouter } = require("./backend/routes/stats");
 const { authRouter } = require('./backend/routes/auth')
 const { globalLimiter } = require('./backend/middleware/rateLimiter')
-const { errorHandler } = require('./backend/services/error')
+const { errorHandler } = require('./backend/utils/error')
 const dotenv = require('dotenv').config()
 
 app.use(cors());

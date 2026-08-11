@@ -1,9 +1,17 @@
 const { connect } = require('node:http2');
 const { chargingStationModel } = require('../models/stations');
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
 
 const returnAllStationsLiterallyServices = async () => {
-    const data = await chargingStationModel.find({})
-    return data;
+    const cachedStations = getCache('stations:all');
+    if (cachedStations) {
+        return cachedStations;
+    }
+    else {
+        const data = await chargingStationModel.find({})
+        setCache('stations:all', data, 60 * 60 * 1000);
+        return data;
+    }
 }
 const returnAllStationsServices = async (latitude, longitude, maxDistance) => {
     const data = await chargingStationModel.find({
@@ -43,40 +51,49 @@ const returnFaultyStationsServices = async (latitude, longitude, maxDistance) =>
 //make admin access only
 const createStationServices = async (data) => {
     const obj = {
-        name : data.name,
-        address : data.address,
-        location : {
-            type : data.location.type,
-            coordinates : data.location.coordinates
+        name: data.name,
+        address: data.address,
+        location: {
+            type: data.location.type,
+            coordinates: data.location.coordinates
         },
-        connectors : data.connectors,
-        status : data.status,
-        network : data.network
+        connectors: data.connectors,
+        status: data.status,
+        network: data.network
     }
     const savedData = await chargingStationModel.create(obj);
+    setCache(`station:${savedData._id}`, savedData, 60 * 60 * 1000);
+    invalidateCache('stations:all');
     return savedData;
-} 
+}
 
-const updateStationServices = async (id,data) => {
+const updateStationServices = async (id, data) => {
     const obj = {
-        id : data._id,
-        name : data.name,
-        address : data.address,
-        location : {
-            type : data.location.type,
-            coordinates : data.location.coordinates
+        id: data._id,
+        name: data.name,
+        address: data.address,
+        location: {
+            type: data.location.type,
+            coordinates: data.location.coordinates
         },
-        connectors : data.connectors,
-        status : data.status,
-        network : data.network
+        connectors: data.connectors,
+        status: data.status,
+        network: data.network
     }
-    // const originalData = await chargingStationModel.findById(obj.id)
-    const updatedData = await chargingStationModel.findByIdAndUpdate(obj.id,obj,{new : true, runValidators : true})
+    const checkExistingCache = getCache(`station:${obj.id}`);
+    if (checkExistingCache) {
+        invalidateCache(`station:${obj.id}`);
+    }
+    setCache(`station:${obj.id}`, obj, 60 * 60 * 1000);
+    invalidateCache('stations:all');
+    const updatedData = await chargingStationModel.findByIdAndUpdate(obj.id, obj, { new: true, runValidators: true })
     return updatedData;
 }
 
 const deleteStationServices = async (id) => {
     await chargingStationModel.findByIdAndDelete(id);
+    invalidateCache(`station:${id}`);
+    invalidateCache('stations:all');
     return 'deletion successful'
 }
 module.exports = { returnAllStationsLiterallyServices, returnAllStationsServices, returnAvailableStationsServices, returnInUseStationsServices, returnFaultyStationsServices, createStationServices, updateStationServices, deleteStationServices }

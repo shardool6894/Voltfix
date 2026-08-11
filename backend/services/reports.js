@@ -1,7 +1,16 @@
 const { issueReportModel } = require('../models/reports')
 const { chargingStationModel } = require('../models/stations')
+const { getCache, setCache, invalidateCache, invalidateCacheByPrefix } = require('../utils/cache')
 const getAllReportsServices = async () => {
-    return await issueReportModel.find({}).sort({ createdAt: -1 });
+    const cachedReports = getCache('reports:all');
+    if (cachedReports) {
+        return cachedReports;
+    }
+    else {
+        const data = await issueReportModel.find({}).sort({ createdAt: -1 });
+        setCache('reports:all', data, 60 * 60 * 1000);
+        return data;
+    }
 }
 const createReportServices = async (data) => {
     const trimmedName = data.stationName.trim();
@@ -19,9 +28,11 @@ const createReportServices = async (data) => {
         issueType: data.issueType,
         description: data.description,
         reporterName: data.reporterName?.trim() || "Anonymous",
-        photo : data.photo || 'No photo',
+        photo: data.photo || 'No photo',
     };
     const saveReport = await issueReportModel.create(report);
+    setCache(`report:${saveReport._id}`, saveReport, 60 * 60 * 1000);
+    invalidateCache('reports:all');
     return saveReport
 }
 
@@ -38,6 +49,12 @@ const updateReportStatusServices = async (userid, reportid, stationStatus) => {
         { name: report.stationName },
         { status: stationStatus }, { returnDocument: "after" }
     );
+    const checkExistingCache = getCache(`report:${reportid}`);
+    if (checkExistingCache) {
+        invalidateCache(`report:${reportid}`);
+    }
+    setCache(`report:${reportid}`, report, 60 * 60 * 1000);
+    invalidateCache('reports:all');
     return report;
 }
 const dismissReportServices = async (userId, reportId) => {
@@ -49,6 +66,12 @@ const dismissReportServices = async (userId, reportId) => {
     report.dismissedAt = new Date();
     report.dismissedBy = userId;
     await report.save();
+    const checkExistingCache = getCache(`report:${reportId}`);
+    if (checkExistingCache) {
+        invalidateCache(`report:${reportId}`);
+    }
+    setCache(`report:${reportId}`, report, 60 * 60 * 1000);
+    invalidateCache('reports:all');
     return report;
 }
 module.exports = { getAllReportsServices, createReportServices, updateReportStatusServices, dismissReportServices }
