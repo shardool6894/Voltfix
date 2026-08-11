@@ -3,6 +3,7 @@ const cors = require("cors");
 const cookieParser = require('cookie-parser');
 const path = require('path')
 const app = express()
+const { connectRedis } = require('./backend/config/redis')
 const { connectDB } = require('./backend/config/database');
 const { stationRouter } = require("./backend/routes/stations");
 const { reportRouter } = require("./backend/routes/reports");
@@ -26,6 +27,7 @@ app.use(errorHandler);
 (async () => {
     try {
         const databaseConnection = await connectDB();
+        const redisConnection = await connectRedis();
         app.listen(5000, () => {
             console.log('server running on port 5000')
         })
