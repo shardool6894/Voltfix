@@ -15,25 +15,19 @@ const returnAllStationsLiterallyServices = async (queryParams) => {
         ]
     }
     const cacheKey = `stations:${page}:${limit}:${sort}:${searchKeywords}`;
-    const cachedStations = getCache(cacheKey);
-    if (cachedStations) {
-        return cachedStations;
-    }
-    else {
-        const response = await fetchStaleDataWhileRevalidate(cacheKey, 3600, () => {
-            const [data, totalData] = await Promise.all([chargingStationModel.find(query).sort(sort).skip(skip).limit(limit), chargingStationModel.countDocuments(query)])
-            setCache(cacheKey, data, 60 * 60 * 1000);
-            const returnValue = {
-                data, pagination: {
-                    totalItems: totalData,
-                    totalPages: Math.ceil(totalData / limit),
-                    currentPage: page,
-                    itemsPerPage: limit
-                }
-            };
-            return returnValue;
-        })
-    }
+    return await fetchStaleDataWhileRevalidate(cacheKey, 3600, async () => {
+        const [data, totalData] = await Promise.all([chargingStationModel.find(query).sort(sort).skip(skip).limit(limit), chargingStationModel.countDocuments(query)])
+        setCache(cacheKey, data, 60 * 60 * 1000);
+        const returnValue = {
+            data, pagination: {
+                totalItems: totalData,
+                totalPages: Math.ceil(totalData / limit),
+                currentPage: page,
+                itemsPerPage: limit
+            }
+        };
+        return returnValue;
+    })
 }
 const returnAllStationsServices = async (latitude, longitude, maxDistance) => {
     const nearbyIds = await searchGeoCache(`station:geoCache`, longitude, latitude, maxDistance);
@@ -98,6 +92,14 @@ const createStationServices = async (data) => {
         network: data.network
     }
     const savedData = await chargingStationModel.create(obj);
+    const newKey = `stations:1:10:-createdAt`
+    const currentCache = getCache(newKey);
+    if(currentCache && currentCache.data && currentCache.data.data){
+        currentCache.data.data.unshift(savedData);
+        setCache(newKey, currentCache, 60*60*1000);
+    }else{
+        invalidateCacheByPrefix('stations:')
+    }
     addGeoCache(`station:geoCache`, savedData.location.coordinates[0], savedData.location.coordinates[1], savedData._id)
     setCache(`station:${savedData._id}`, savedData, 60 * 60 * 1000);
     invalidateCache('stations:all');

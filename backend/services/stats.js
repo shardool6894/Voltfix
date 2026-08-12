@@ -5,11 +5,7 @@ const { set } = require('mongoose')
 const { cache } = require('react')
 const stationsTrackedServices = async function () {
     const cacheKey = 'stats:stationsCount'
-    const cachedCount = getCache(cacheKey)
-    if (cachedCount) {
-        return cachedCount;
-    }
-    fetchStaleDataWhileRevalidate(cacheKey, 3600, () => {
+    return await fetchStaleDataWhileRevalidate(cacheKey, 3600, async () => {
         const count = await chargingStationModel.countDocuments();
         setCache(cacheKey, count, 1000 * 60 * 60 * 24);
         return count;
@@ -25,15 +21,11 @@ const reportedTodayServices = async function () {
     //the above one scans too much
     const date = new Date();
     const cacheKey = `stats:reportedTodayCount:${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`
-    const cachedCount = getCache(cacheKey);
-    if (cachedCount) {
-        return count;
-    }
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    fetchStaleDataWhileRevalidate(cacheKey, 3600, () => {
+    return await fetchStaleDataWhileRevalidate(cacheKey, 3600, async () => {
         const count = await issueReportModel.countDocuments({
             createdAt: {
                 $gte: start,
@@ -59,11 +51,7 @@ const fixedThisWeekServices = async function () {
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
     const cacheKey = `stats:fixedThisWeekCount:${start.getDate()}-${start.getMonth() + 1}-${start.getFullYear()}`;
-    const cachedCount = getCache(cacheKey);
-    if (cachedCount) {
-        return cachedCount;
-    }
-    fetchStaleDataWhileRevalidate(cacheKey, 3600, () => {
+    return await fetchStaleDataWhileRevalidate(cacheKey, 3600, async () => {
         const count = await issueReportModel.countDocuments({
             status: { $in: ["resolved", "closed"] },
             updatedAt: {

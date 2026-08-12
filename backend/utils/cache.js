@@ -61,7 +61,7 @@ const addGeoCache = async (key, latitude, longitude) => {
 
 const searchGeoCache = async (key, latitude, longitude, maxDistance) => {
     try {
-        await redisClient.GEOSEARCH(key, {
+        return await redisClient.GEOSEARCH(key, {
             longitude: parseFloat(longitude), latitude: parseFloat(latitude)
         }, { radius: parseInt(maxDistance, 10), unit: 'm' })
     }
