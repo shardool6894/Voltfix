@@ -1,8 +1,6 @@
 const { chargingStationModel } = require('../models/stations')
 const { issueReportModel } = require('../models/reports')
 const { getCache, setCache, invalidateCache, invalidateCacheByPrefix, addGeoCache, searchGeoCache, removeGeoCache, fetchWithDeduplication, fetchStaleDataWhileRevalidate } = require('../utils/cache')
-const { set } = require('mongoose')
-const { cache } = require('react')
 const stationsTrackedServices = async function () {
     const cacheKey = 'stats:stationsCount'
     return await fetchStaleDataWhileRevalidate(cacheKey, 3600, async () => {
